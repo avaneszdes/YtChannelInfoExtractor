@@ -25,10 +25,9 @@ public partial class Program
     
     public static async Task Main(string[] args)
     {
-
         await ExtractAndSaveDataFromJsonAsync("FilesToWork");
-        // await FetchAndSaveData(
-        //     "learn english, learn spanish, learn german, learn japanese, learn korean, learn portuguese, learn italian, learn arabic");
+        await FetchAndSaveData(
+            "learn english, learn spanish, learn german, learn japanese, learn korean, learn portuguese, learn italian, learn arabic");
     }
 
     private static List<ChannelInfo> ParseChannelInfo(List<ChannelInfo> channelInfosToWork)
@@ -187,6 +186,15 @@ public partial class Program
     /// <param name="folderName">Folder name. Path is bin/debug/net8.0/FilesToWork.</param>
     private static async Task ExtractAndSaveDataFromJsonAsync(string folderName)
     {
+        await using var db = new YtChannelContext();
+
+        var isChannelInfosEmpty = await db.ChannelInfosAnyAsync();
+
+        if (!isChannelInfosEmpty)
+        {
+            return;
+        }
+        
         var assemblyLocation = GetAssemblyLocation();
         var folderLocation = GetFolderLocation(assemblyLocation, folderName);
         
@@ -200,7 +208,6 @@ public partial class Program
 
         var channelInfosToSave = await ParseJsonFilesAsync(fileNames);
 
-        await using var db = new YtChannelContext();
         await db.AddChannelInfoRangeAsync(channelInfosToSave);
     }
 

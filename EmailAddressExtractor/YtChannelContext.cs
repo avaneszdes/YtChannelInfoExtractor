@@ -46,6 +46,11 @@ public sealed class YtChannelContext : DbContext
         await SaveChangesAsync();
     }
     
+    public Task<bool> ChannelInfosAnyAsync()
+    {
+        return ChannelInfos.AnyAsync();
+    }
+    
     public async Task AddOrUpdateCursorAsync(AboutRequest aboutRequest)
     {
         var requestInfo = await AboutRequests.FirstOrDefaultAsync(x => x.KeyWord == aboutRequest.KeyWord);
