@@ -4,25 +4,25 @@ using System.Text.RegularExpressions;
 
 namespace MailAddressExtractor;
 
-public class Program
+public partial class Program
 {
+    const string PhoneNumberPattern = @"(?:WhatsApp\s*[:+-]?\s*)?(\+?\d{1,4}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})";
+    const string EmailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
+    
     public static async Task Main(string[] args)
     {
         await FetchAndSaveData(
             "learn english, learn spanish, learn german, learn japanese, learn korean, learn portuguese, learn italian, learn arabic");
     }
 
-    static List<ChannelInfo> ParseChannelInfo(List<ChannelInfo> channelInfosToWork)
+    private static List<ChannelInfo> ParseChannelInfo(List<ChannelInfo> channelInfosToWork)
     {
-        const string phoneNumberPattern = @"(?:WhatsApp\s*[:+-]?\s*)?(\+?\d{1,4}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})";
-        const string emailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
-
         var channelInfos = new List<ChannelInfo>();
 
         foreach (var record in channelInfosToWork)
         {
-            var emailMatches = Regex.Matches(record.Description, emailPattern);
-            var phoneNumberMatches = Regex.Matches(record.Description, phoneNumberPattern);
+            var emailMatches = EmailRegex().Matches(record.Description);
+            var phoneNumberMatches = PhoneNumberRegex().Matches(record.Description);
 
             if (emailMatches.Count > 0 || phoneNumberMatches.Count > 0)
             {
@@ -36,7 +36,7 @@ public class Program
         return channelInfos;
     }
 
-    static async Task WaitRandom()
+    private static async Task WaitRandom()
     {
         // Generate a random number between 6000 and 25000 milliseconds (6 to 25 seconds)
         var random = new Random();
@@ -51,7 +51,7 @@ public class Program
     }
 
     // Function to fetch data from API
-    static async Task<string> FetchData(string url, Dictionary<string, object> parameters)
+    private static async Task<string> FetchData(string url, Dictionary<string, object> parameters)
     {
         using var client = new HttpClient();
         try
@@ -75,7 +75,7 @@ public class Program
     }
 
     // Main function to orchestrate data fetching and saving
-    static async Task FetchAndSaveData(string keywords)
+    private static async Task FetchAndSaveData(string keywords)
     {
         const string baseUrl = "https://api.playboard.co/v1/search/channel";
         var parameters = new Dictionary<string, object>
@@ -94,11 +94,11 @@ public class Program
         foreach (var keyword in keywordArray)
         {
             var encodedKeyword = keyword.Replace(", ", " ").Trim();
-            var cursor = string.Empty;
+            string cursor;
             
             await using (var db = new YtChannelContext())
             {
-                cursor = (await db.GetCursorByKeyword(keyword))?.Cursor;
+                cursor = (await db.GetCursorByKeyword(keyword))?.Cursor ?? string.Empty;
             }
             
             Console.WriteLine($"Starting data fetch for keyword: {encodedKeyword}");
@@ -128,20 +128,19 @@ public class Program
 
                         var channelInfosToSave = ParseChannelInfo(channelInfos);
 
-                        await using (var db = new YtChannelContext())
+                        await using var db = new YtChannelContext();
+                        await db.AddChannelInfoRangeAsync(channelInfosToSave);
+                            
+                        await db.AddOrUpdateCursorAsync(new AboutRequest()
                         {
-                            await db.AddChannelInfoRangeAsync(channelInfosToSave);
-                        }
-                        
-                        await using (var db = new YtChannelContext())
-                        {
-                            await db.AddOrUpdateCursorAsync(new AboutRequest()
-                            {
-                                Cursor = cursor,
-                                KeyWord = encodedKeyword
+                            Cursor = cursor,
+                            KeyWord = encodedKeyword
                                 
-                            });
-                        }
+                        });
+                        
+                        Console.WriteLine($"{channelInfos.Count} records saved in db");
+                        
+                        Console.WriteLine("Cursor updated");
                     }
                     else
                     {
@@ -158,4 +157,9 @@ public class Program
             }
         }
     }
+
+    [GeneratedRegex(PhoneNumberPattern)]
+    private static partial Regex PhoneNumberRegex();
+    [GeneratedRegex(EmailPattern)]
+    private static partial Regex EmailRegex();
 }
