@@ -1,18 +1,34 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace MailAddressExtractor;
 
+record Data
+{
+    public bool HasMore { get; set; }
+    public int RecordNumber { get; set; }
+    public List<ChannelInfo> Records { get; set; }
+}
+
 public partial class Program
 {
-    const string PhoneNumberPattern = @"(?:WhatsApp\s*[:+-]?\s*)?(\+?\d{1,4}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})";
-    const string EmailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
+    private const string PhoneNumberPattern = @"(?:WhatsApp\s*[:+-]?\s*)?(\+?\d{1,4}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})";
+    private const string EmailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
+    
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = false
+    };
     
     public static async Task Main(string[] args)
     {
-        await FetchAndSaveData(
-            "learn english, learn spanish, learn german, learn japanese, learn korean, learn portuguese, learn italian, learn arabic");
+
+        await ExtractAndSaveDataFromJsonAsync("FilesToWork");
+        // await FetchAndSaveData(
+        //     "learn english, learn spanish, learn german, learn japanese, learn korean, learn portuguese, learn italian, learn arabic");
     }
 
     private static List<ChannelInfo> ParseChannelInfo(List<ChannelInfo> channelInfosToWork)
@@ -85,11 +101,7 @@ public partial class Program
 
         var keywordArray = keywords.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = false
-        };
+       
 
         foreach (var keyword in keywordArray)
         {
@@ -114,7 +126,7 @@ public partial class Program
                     var jsonDataList = jsonDoc.RootElement.GetProperty("list");
                     cursor = jsonDoc.RootElement.GetProperty("cursor").ToString();
 
-                    var channelInfos = jsonDataList.Deserialize<List<ChannelInfo>>(options);
+                    var channelInfos = jsonDataList.Deserialize<List<ChannelInfo>>(Options);
 
                     if (string.IsNullOrEmpty(cursor))
                     {
@@ -158,6 +170,76 @@ public partial class Program
         }
     }
 
+    private static string GetAssemblyLocation()
+    {
+        var assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        if (assemblyLocation is null)
+        {
+            throw new FileNotFoundException("Assembly Location folder not found");
+        }
+
+        return assemblyLocation;
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="folderName">Folder name. Path is bin/debug/net8.0/FilesToWork.</param>
+    private static async Task ExtractAndSaveDataFromJsonAsync(string folderName)
+    {
+        var assemblyLocation = GetAssemblyLocation();
+        var folderLocation = GetFolderLocation(assemblyLocation, folderName);
+        
+        var fileNames = Directory.GetFiles(folderLocation);
+
+        if (fileNames.Length == 0)
+        {
+            Console.WriteLine("Files not exist");
+            return;
+        }
+
+        var channelInfosToSave = await ParseJsonFilesAsync(fileNames);
+
+        await using var db = new YtChannelContext();
+        await db.AddChannelInfoRangeAsync(channelInfosToSave);
+    }
+
+    private static async Task<List<ChannelInfo>> ParseJsonFilesAsync(string[] fileNames)
+    {
+        var channelInfos = new List<ChannelInfo>();
+
+        foreach (var fileName in fileNames)
+        {
+            await using var openStream = File.OpenRead(fileName);
+
+            if (openStream.Length > 0)
+            {
+                var data = await JsonSerializer.DeserializeAsync<Data>(openStream, Options);
+
+                if (data is null)
+                {
+                    continue;
+                }
+
+                channelInfos = ParseChannelInfo(data.Records);
+            }
+        }
+
+        return channelInfos;
+    }
+
+    private static string GetFolderLocation(string assemblyLocation, string folderName)
+    {
+        var folderLocation = Path.Combine(assemblyLocation, folderName);
+
+        if (!Directory.Exists(folderLocation))
+        {
+            throw new FileNotFoundException($"Directory ({folderLocation}) not found");
+        }
+
+        return folderLocation;
+    }
+    
     [GeneratedRegex(PhoneNumberPattern)]
     private static partial Regex PhoneNumberRegex();
     [GeneratedRegex(EmailPattern)]
