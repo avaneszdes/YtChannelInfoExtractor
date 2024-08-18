@@ -190,8 +190,9 @@ public partial class Program
 
         var isChannelInfosEmpty = await db.ChannelInfosAnyAsync();
 
-        if (!isChannelInfosEmpty)
+        if (isChannelInfosEmpty)
         {
+            Console.WriteLine("ChannelInfos table is not empty starting fetch new data...");
             return;
         }
         
