@@ -6,7 +6,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MailAddressExtractor.Migrations
 {
     /// <inheritdoc />
-    public partial class CursorTable : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -24,6 +24,23 @@ namespace MailAddressExtractor.Migrations
                 {
                     table.PrimaryKey("PK_AboutRequests", x => x.Id);
                 });
+
+            migrationBuilder.CreateTable(
+                name: "ChannelInfos",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Description = table.Column<string>(type: "text", nullable: false),
+                    Email = table.Column<string>(type: "text", nullable: true),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "text", nullable: true),
+                    KeyWord = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChannelInfos", x => x.Id);
+                });
         }
 
         /// <inheritdoc />
@@ -31,6 +48,9 @@ namespace MailAddressExtractor.Migrations
         {
             migrationBuilder.DropTable(
                 name: "AboutRequests");
+
+            migrationBuilder.DropTable(
+                name: "ChannelInfos");
         }
     }
 }

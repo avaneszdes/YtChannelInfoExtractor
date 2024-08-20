@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MailAddressExtractor.Migrations
 {
     [DbContext(typeof(YtChannelContext))]
-    [Migration("20240817100159_CursorTable")]
-    partial class CursorTable
+    [Migration("20240820124030_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -58,11 +58,17 @@ namespace MailAddressExtractor.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("KeyWord")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
                         .HasColumnType("text");
 
                     b.HasKey("Id");

@@ -55,6 +55,9 @@ namespace MailAddressExtractor.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("KeyWord")
                         .IsRequired()
                         .HasColumnType("text");
 

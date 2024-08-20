@@ -10,15 +10,14 @@ public sealed class YtChannelContext : DbContext
 
     public YtChannelContext()
     {
-        Database.EnsureCreated();
+        Database.Migrate();
     }
-    
+
     public YtChannelContext(DbContextOptions<YtChannelContext> options)
         : base(options)
     {
-        Database.EnsureCreated(); 
     }
-    
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         var config = new ConfigurationBuilder()
@@ -30,7 +29,7 @@ public sealed class YtChannelContext : DbContext
         optionsBuilder.UseNpgsql(connectionString);
     }
 
-    public async Task AddChannelInfoRangeAsync(List<ChannelInfo> channelInfos)
+    public async Task AddChannelInfoRangeAsync(IEnumerable<ChannelInfo> channelInfos)
     {
         var existingItemsInDb = ChannelInfos
             .Where(dbItem => channelInfos.Select(x => x.Email)
@@ -38,19 +37,18 @@ public sealed class YtChannelContext : DbContext
             .ToList();
 
         var itemsNotInDb = channelInfos
-            .Where(x => !existingItemsInDb.
-                Any(dbItem => dbItem.Name == x.Name && dbItem.Email == x.Email));
-        
+            .Where(x => !existingItemsInDb.Any(dbItem => dbItem.Name == x.Name && dbItem.Email == x.Email));
+
         await ChannelInfos.AddRangeAsync(itemsNotInDb);
 
         await SaveChangesAsync();
     }
-    
+
     public Task<bool> ChannelInfosAnyAsync()
     {
         return ChannelInfos.AnyAsync();
     }
-    
+
     public async Task AddOrUpdateCursorAsync(AboutRequest aboutRequest)
     {
         var requestInfo = await AboutRequests.FirstOrDefaultAsync(x => x.KeyWord == aboutRequest.KeyWord);
@@ -64,10 +62,10 @@ public sealed class YtChannelContext : DbContext
             requestInfo.Cursor = aboutRequest.Cursor;
             AboutRequests.Update(requestInfo);
         }
-        
+
         await SaveChangesAsync();
     }
-    
+
     public Task<AboutRequest?> GetCursorByKeyword(string keyword)
     {
         return AboutRequests.FirstOrDefaultAsync(x => x.KeyWord == keyword);
@@ -81,6 +79,8 @@ public record ChannelInfo
     public string? Email { get; set; }
     public string Name { get; set; }
     public string? PhoneNumber { get; set; }
+
+    public string KeyWord { get; set; }
 }
 
 public record AboutRequest

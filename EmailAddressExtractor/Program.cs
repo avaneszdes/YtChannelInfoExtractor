@@ -14,23 +14,25 @@ record Data
 
 public partial class Program
 {
-    private const string PhoneNumberPattern = @"(?:WhatsApp\s*[:+-]?\s*)?(\+?\d{1,4}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})";
+    private const string PhoneNumberPattern =
+        @"(?:WhatsApp\s*[:+-]?\s*)?(\+?\d{1,4}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})";
+
     private const string EmailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
-    
+
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = false
     };
-    
+
     public static async Task Main(string[] args)
     {
-        await ExtractAndSaveDataFromJsonAsync("FilesToWork");
+        await ExtractAndSaveDataFromJsonAsync("FilesToWork", "learn english");
         await FetchAndSaveData(
             "learn english, learn spanish, learn german, learn japanese, learn korean, learn portuguese, learn italian, learn arabic");
     }
 
-    private static List<ChannelInfo> ParseChannelInfo(List<ChannelInfo> channelInfosToWork)
+    private static List<ChannelInfo> ParseChannelInfo(List<ChannelInfo> channelInfosToWork, string keyword)
     {
         var channelInfos = new List<ChannelInfo>();
 
@@ -44,7 +46,7 @@ public partial class Program
                 var email = string.Join(",", emailMatches);
                 var phoneNumber = string.Join(",", phoneNumberMatches);
 
-                channelInfos.Add(record with { Email = email, PhoneNumber = phoneNumber});
+                channelInfos.Add(record with { Email = email, PhoneNumber = phoneNumber, KeyWord = keyword });
             }
         }
 
@@ -100,18 +102,17 @@ public partial class Program
 
         var keywordArray = keywords.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-       
 
         foreach (var keyword in keywordArray)
         {
             var encodedKeyword = keyword.Replace(", ", " ").Trim();
             string cursor;
-            
+
             await using (var db = new YtChannelContext())
             {
                 cursor = (await db.GetCursorByKeyword(keyword))?.Cursor ?? string.Empty;
             }
-            
+
             Console.WriteLine($"Starting data fetch for keyword: {encodedKeyword}");
 
             while (true)
@@ -137,20 +138,19 @@ public partial class Program
                     {
                         Console.WriteLine($"Fetched {channelInfos.Count} items for keyword: {encodedKeyword}");
 
-                        var channelInfosToSave = ParseChannelInfo(channelInfos);
+                        var channelInfosToSave = ParseChannelInfo(channelInfos, keyword);
 
                         await using var db = new YtChannelContext();
                         await db.AddChannelInfoRangeAsync(channelInfosToSave);
-                            
+
                         await db.AddOrUpdateCursorAsync(new AboutRequest()
                         {
                             Cursor = cursor,
                             KeyWord = encodedKeyword
-                                
                         });
-                        
+
                         Console.WriteLine($"{channelInfos.Count} records saved in db");
-                        
+
                         Console.WriteLine("Cursor updated");
                     }
                     else
@@ -169,35 +169,26 @@ public partial class Program
         }
     }
 
-    private static string GetAssemblyLocation()
-    {
-        var assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        if (assemblyLocation is null)
-        {
-            throw new FileNotFoundException("Assembly Location folder not found");
-        }
-
-        return assemblyLocation;
-    }
-    
     /// <summary>
     /// 
     /// </summary>
     /// <param name="folderName">Folder name in current directory </param>
-    private static async Task ExtractAndSaveDataFromJsonAsync(string folderName)
+    /// <param name="keyword">Keyword to save</param>
+    private static async Task ExtractAndSaveDataFromJsonAsync(string folderName, string keyword)
     {
         await using var db = new YtChannelContext();
 
         var isChannelInfosEmpty = await db.ChannelInfosAnyAsync();
-        
+
         if (isChannelInfosEmpty)
         {
             Console.WriteLine("ChannelInfos table is not empty starting fetch new data...");
             return;
         }
-        
-        var folderLocation = string.Concat(Directory.GetParent(Environment.CurrentDirectory)!.Parent!.Parent!.FullName, "\\", folderName);
-        
+
+        var folderLocation = Path.Combine(Directory.GetParent(Environment.CurrentDirectory)!.Parent!.Parent!.FullName,
+            folderName);
+
         var fileNames = Directory.GetFiles(folderLocation);
 
         if (fileNames.Length == 0)
@@ -206,12 +197,12 @@ public partial class Program
             return;
         }
 
-        var channelInfosToSave = await ParseJsonFilesAsync(fileNames);
+        var channelInfosToSave = await ParseJsonFilesAsync(fileNames, keyword);
 
         await db.AddChannelInfoRangeAsync(channelInfosToSave);
     }
 
-    private static async Task<List<ChannelInfo>> ParseJsonFilesAsync(string[] fileNames)
+    private static async Task<List<ChannelInfo>> ParseJsonFilesAsync(string[] fileNames, string keyword)
     {
         var channelInfos = new List<ChannelInfo>();
 
@@ -228,7 +219,7 @@ public partial class Program
                     continue;
                 }
 
-                channelInfos = ParseChannelInfo(data.Records);
+                channelInfos = ParseChannelInfo(data.Records, keyword);
             }
         }
 
@@ -246,9 +237,10 @@ public partial class Program
 
         return folderLocation;
     }
-    
+
     [GeneratedRegex(PhoneNumberPattern)]
     private static partial Regex PhoneNumberRegex();
+
     [GeneratedRegex(EmailPattern)]
     private static partial Regex EmailRegex();
 }
