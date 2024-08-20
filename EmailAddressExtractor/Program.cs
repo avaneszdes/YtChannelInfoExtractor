@@ -183,21 +183,20 @@ public partial class Program
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="folderName">Folder name. Path is bin/debug/net8.0/FilesToWork.</param>
+    /// <param name="folderName">Folder name in current directory </param>
     private static async Task ExtractAndSaveDataFromJsonAsync(string folderName)
     {
         await using var db = new YtChannelContext();
 
         var isChannelInfosEmpty = await db.ChannelInfosAnyAsync();
-
+        
         if (isChannelInfosEmpty)
         {
             Console.WriteLine("ChannelInfos table is not empty starting fetch new data...");
             return;
         }
         
-        var assemblyLocation = GetAssemblyLocation();
-        var folderLocation = GetFolderLocation(assemblyLocation, folderName);
+        var folderLocation = string.Concat(Directory.GetParent(Environment.CurrentDirectory)!.Parent!.Parent!.FullName, "\\", folderName);
         
         var fileNames = Directory.GetFiles(folderLocation);
 

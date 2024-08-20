@@ -1,0 +1,29 @@
+version: "3.7"
+services:
+  pgadmin:
+    container_name: pgAdmin
+    image: dpage/pgadmin4
+    ports:
+      - 5050:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    networks:
+      - lingopractices
+  postgres:
+    container_name: postgres
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    networks:
+      - lingopractices
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: sa
+      POSTGRES_PASSWORD: reallyStrongPwd#123
+
+networks:
+  lingopractices:
+    name: lingopractices
