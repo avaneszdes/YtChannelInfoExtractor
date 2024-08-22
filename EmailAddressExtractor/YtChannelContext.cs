@@ -79,8 +79,8 @@ public record ChannelInfo
     public string? Email { get; set; }
     public string Name { get; set; }
     public string? PhoneNumber { get; set; }
-
     public string KeyWord { get; set; }
+    public long SubscriberCount { get; set; }
 }
 
 public record AboutRequest

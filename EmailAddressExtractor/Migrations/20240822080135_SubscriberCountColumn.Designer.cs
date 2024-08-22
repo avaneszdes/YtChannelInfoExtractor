@@ -2,6 +2,7 @@
 using MailAddressExtractor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MailAddressExtractor.Migrations
 {
     [DbContext(typeof(YtChannelContext))]
-    partial class YtChannelContextModelSnapshot : ModelSnapshot
+    [Migration("20240822080135_SubscriberCountColumn")]
+    partial class SubscriberCountColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
